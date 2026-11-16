@@ -1,38 +1,61 @@
-# Voice Clone Realtime Translator（独立项目）
+# EchoBridge Web · 原声跨语实时同传（网页比赛版）
 
-一个完全独立的实时同声传译 + 音色克隆项目，参考 **Split Pipeline（VAD → 流式 ASR → 术语增强 MT → 音色克隆流式 TTS → 虚拟声卡输出）** 架构设计。
+这是一个**完全独立于桌面端**的纯网页版实时语音同传与声音复刻项目，继承了桌面版已经调优好的核心音频与实时参数，并针对浏览器场景与 **Qoder Sites** 部署做了彻底解耦。
 
-> 与现有「获客系统」**完全隔离**：独立目录、独立虚拟环境、独立配置与端口（默认 `8900`），无共享数据库或状态冲突。
+## 继承自原 App 的核心调优参数
 
-## 目录结构
+| 模块 | 参数 | 说明 |
+| :--- | :--- | :--- |
+| 端到端实时同传 | `qwen3.5-livetranslate-flash-realtime` | `24kHz PCM16` 流式译音直出 + 实时原声复刻 (`enable_voice_clone=True`, `frequency="always"`) |
+| 断句灵敏度 | `VAD_SILENCE_MS=400`, `threshold=0.45` | 相比默认 750ms 显著降低一来一回对话等待延迟 |
+| 长连接保活 | `KEEPALIVE_INTERVAL_MS=100`, `KEEPALIVE_IDLE_MS=150` | 静音帧保活保持服务端时钟连续，防止停顿后首词卡顿 |
+| 前景语音门控 | `ForegroundSpeechGate` (`base_open_dbfs=-42.0`, 瞬态脉冲剔除) | 配合浏览器 WebRTC AEC (`echoCancellation` + `noiseSuppression`) 过滤敲击与背景杂音 |
+| 自定义复刻音色 | MiniMax `speech-2.8-turbo` + `wss://api.minimaxi.com/ws/v1/t2a_v2` | 浏览器 10 秒录音编码 16kHz WAV 上传复刻，存在访客浏览器本地 `localStorage` |
+
+## 项目结构
 
 ```text
-voice-clone-realtime-translator/
-├── README.md
-├── pyproject.toml
-├── .env.example
-└── src/
-    ├── __init__.py
-    ├── config.py          # 独立配置（环境变量加载，不与外部系统冲突）
-    ├── voice_clone.py     # 音色克隆管理（上传人声样本 -> 生成/管理 voice_id）
-    ├── pipeline.py        # 实时同传核心管线（VAD -> ASR -> MT -> 克隆音色 TTS）
-    └── server.py          # 独立 FastAPI + WebSocket 服务（端口 8900）
+echobridge-web/
+├── frontend/                 # 纯静态前端（可直接用 Qoder 发布到 Qoder Sites）
+│   ├── index.html            # 面对面同传 / 双人跨语房间 / 10 秒复刻 / 免开麦试听样例
+│   ├── audio-worklet.js      # AudioWorklet 线程实时降采样 16kHz PCM16 (40ms/帧)
+│   ├── config.js             # 后端服务地址配置（部署 Qoder Sites 时填入后端 HTTPS 域名）
+│   └── samples/              # 内置中英文样例 WAV，评委无麦克风也能 10 秒测通
+├── backend/                  # 无声卡驱动依赖的轻量多用户 WebSocket 网关
+│   ├── app/
+│   │   ├── server.py         # FastAPI + CORS + WebSocket (/ws/web-translate, /ws/room/{id})
+│   │   ├── web_session.py    # 按连接隔离会话 + 房间双语语音/字幕转发 Hub
+│   │   ├── livetranslate_client.py
+│   │   ├── minimax_client.py
+│   │   ├── audio_gate.py
+│   │   └── config.py
+│   └── requirements.txt
+├── Dockerfile                # 云端容器一键部署实时后端
+├── export_qoder_sites.sh     # 导出 Qoder Sites 静态站点包到 qoder_sites_bundle/
+└── run.sh                    # 本机一键调试启动 (http://127.0.0.1:8910)
 ```
 
-## 快速开始
+## 本地试跑
 
 ```bash
-cd /Users/mima0000/.gemini/antigravity/scratch/voice-clone-realtime-translator
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-cp .env.example .env
-# 在 .env 中填入你的 DashScope / MiniMax 等 API Key
-uvicorn src.server:app --host 127.0.0.1 --port 8900 --reload
+cd echobridge-web
+./run.sh
 ```
+浏览器打开 `http://127.0.0.1:8910` 即可体验。
 
-## macOS 会议虚拟麦克风联动建议
+## 部署到 Qoder Sites + 云端后端
 
-1. 初期测试可直接安装开源虚拟声卡 **BlackHole 2ch**。
-2. 将本项目的音频输出设备指向 `BlackHole 2ch`，在会议软件（Zoom / 腾讯会议 / WhatsApp）中将麦克风设为 `BlackHole 2ch`，即可实现“你说中文 → 对方听见你的克隆音色英文”。
-3. 如未来需要与获客系统联动，只需在 `.env` 中配置可选的 `OPTIONAL_WEBHOOK_URL`，通过异步 HTTP 事件推送字幕与会话记录，保持核心服务零耦合。
+1. **部署轻量 Python 实时后端（支持 `wss://` 的容器/ECS）**：
+   ```bash
+   docker build -t echobridge-web .
+   docker run -d -p 8080:8080 \
+     -e DASHSCOPE_API_KEY="你的Key" \
+     -e WEB_DEMO_MAX_SECONDS=180 \
+     -e WEB_ALLOWED_ORIGINS="https://你的站点.qoder.zone" \
+     echobridge-web
+   ```
+2. **导出前端并交给 Qoder 部署到 Qoder Sites**：
+   ```bash
+   ./export_qoder_sites.sh "https://你的后端HTTPS域名"
+   ```
+   打开 Qoder，将 `qoder_sites_bundle/`（或 `frontend/`）作为站点目录通过 Qoder Sites 发布，即可获得公开 `https://*.qoder.zone` 比赛访问链接。
