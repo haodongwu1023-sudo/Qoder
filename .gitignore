@@ -1,0 +1,26 @@
+# Secrets & personal runtime data (NEVER commit)
+.env
+.env.*
+!.env.example
+data/
+
+# Python virtualenvs & caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Built native macOS binaries & driver bundles (rebuild from native/)
+bin/
+VoiceCloneLive
+native/hal_driver/build/
+*.o
+*.dylib
+*.driver/
+
+# OS & editor junk
+.DS_Store
+Thumbs.db
