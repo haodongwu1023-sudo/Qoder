@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>English</string>
+  <key>CFBundleExecutable</key>
+  <string>VoiceCloneAudioDriver</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.voiceclone.audio.driver</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>VoiceCloneAudioDriver</string>
+  <key>CFBundlePackageType</key>
+  <string>BNDL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>0.4.0</string>
+  <key>CFBundleSupportedPlatforms</key>
+  <array>
+    <string>MacOSX</string>
+  </array>
+  <key>CFBundleVersion</key>
+  <string>4</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>13.0</string>
+  <key>CFPlugInFactories</key>
+  <dict>
+    <key>8D4E2B61-7A9C-4E12-9F31-2026A8B40001</key>
+    <string>VoiceCloneAudioDriverFactory</string>
+  </dict>
+  <key>CFPlugInTypes</key>
+  <dict>
+    <key>443ABAB8-E7B3-491A-B985-BEB9187030DB</key>
+    <array>
+      <string>8D4E2B61-7A9C-4E12-9F31-2026A8B40001</string>
+    </array>
+  </dict>
+</dict>
+</plist>
